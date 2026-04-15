@@ -249,6 +249,28 @@ Pendiente:
 
 ---
 
+
+## 🔧 Simulación Arduino
+
+El repositorio incluye un simulador del banco de ensayo desarrollado en Arduino:
+
+```text
+flexion_viga_simulacion/
+
+Este módulo permite:
+
+Simular el comportamiento del banco sin hardware real
+Probar la comunicación serie desde la aplicación Python
+Validar el flujo completo del ensayo
+▶️ Uso
+Abrir el archivo:
+flexion_viga_simulacion/flexion_viga.ino
+Compilar y cargar en una placa Arduino
+Conectar la aplicación Python al puerto serie correspondiente
+📌 Nota
+
+Las librerías utilizadas deben instalarse desde el Arduino IDE (Library Manager) si no están disponibles en el entorno local.
+
 ## 🧠 Contexto académico
 
 Aplicación orientada al estudio de:
