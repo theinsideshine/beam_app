@@ -8,20 +8,19 @@ Aplicación en Python para el control y visualización de un banco de ensayo de 
 
 Permitir:
 
-* Control del banco de ensayo mediante Arduino
-* Visualización en tiempo real de magnitudes físicas
-* Interfaz gráfica simple y clara para uso en laboratorio
-* Compatibilidad entre desarrollo en Windows y ejecución en Raspberry Pi
+- Control del banco de ensayo mediante Arduino
+- Visualización en tiempo real de magnitudes físicas
+- Interfaz gráfica clara y robusta para laboratorio
+- Compatibilidad Windows ↔ Raspberry Pi
 
 ---
 
 ## 🖥️ Tecnologías utilizadas
 
-* Python 3.11
-* PySide6 (GUI)
-* PySerial (comunicación serie)
-* Python-dotenv (configuración)
-* Arduino (hardware de adquisición/control)
+- Python 3.11
+- PySide6 (GUI)
+- PySerial (comunicación serie)
+- Arduino (control y adquisición)
 
 ---
 
@@ -30,21 +29,28 @@ Permitir:
 ```text
 beam_app/
 │
-├── main.py                # Punto de entrada
+├── main.py
 │
-├── ui/                    # Interfaz gráfica
+├── ui/
 │   ├── main_window.py
 │   └── graphics.py
 │
-├── core/                  # Lógica base
+├── controllers/
+│   └── main_controller.py
+│
+├── core/
 │   └── serial_manager.py
 │
-├── config/                # Configuración centralizada
+├── config/
 │   └── app_config.py
 │
 ├── assets/
-│   └── images/            # Recursos gráficos
+│   └── images/
+│       ├── app.png
+│       └── udemm_logo.png
 │
+├── run.bat
+├── run.sh
 ├── requirements.txt
 └── README.md
 ```
@@ -90,6 +96,21 @@ pip install -r requirements.txt
 
 ## ▶️ Ejecución
 
+### Windows
+
+```bash
+run.bat
+```
+
+### Linux / Raspberry Pi
+
+```bash
+chmod +x run.sh
+./run.sh
+```
+
+O manual:
+
 ```bash
 python main.py
 ```
@@ -98,62 +119,155 @@ python main.py
 
 ## 🔌 Comunicación con Arduino
 
-El sistema se conecta mediante puerto serie.
+La comunicación se realiza vía puerto serie usando **PySerial** y un hilo de lectura dedicado.
 
-Configuración desde:
+### Comandos enviados
 
-```python
-config/app_config.py
+```json
+{"info":"status"}
+{"info":"all-params"}
+{"distance":500}
+{"force":2500}
+{"cmd":"start"}
 ```
 
-Ejemplo:
+### Respuestas del Arduino
 
-```python
-DEFAULT_SERIAL_PORT = "COM3"        # Windows
-# DEFAULT_SERIAL_PORT = "/dev/ttyACM0"  # Linux / Raspberry
+```json
+{"info":"status","status":0}
+
+{"info":"all-params",
+ "distance":500,
+ "force":2500,
+ "reaction_one":1250,
+ "reaction_two":1250,
+ "flexion":2120.082,
+ "st_test":0
+}
+
+{"cmd":"start","result":"ack"}
+
+{"st_test":0}
 ```
+
+---
+
+## 🧠 Lógica actual del sistema
+
+### Botón **Refrescar**
+
+1. Envía `{"info":"status"}`
+2. Si `status == 0`, envía `{"info":"all-params"}`
+3. Actualiza la interfaz con:
+   - distancia
+   - carga
+   - reacción 1
+   - reacción 2
+   - flexión
+   - estado del ensayo
+
+### Botón **Iniciar**
+
+1. Verifica estado con `{"info":"status"}`
+2. Si el ensayo está apagado:
+   - envía distancia en mm
+   - envía carga en g
+   - envía `{"cmd":"start"}`
+3. La GUI cambia a estado encendido al recibir `ack`
+4. Al recibir `{"st_test":0}`, la GUI vuelve a apagado
+
+### Parsing serie
+
+El controlador reconstruye los JSON desde el stream serie, soportando múltiples objetos consecutivos en la misma ráfaga de datos.
 
 ---
 
 ## 📊 Funcionalidades actuales
 
-* Interfaz gráfica moderna
-* Visualización de:
+- Interfaz gráfica moderna en PySide6
+- Conexión y desconexión por puerto serie
+- Refresco inteligente de parámetros
+- Inicio de ensayo desde GUI
+- Visualización de:
+  - fuerza de reacción 1
+  - fuerza de reacción 2
+  - flexión
+  - estado del ensayo
+- Gauges analógicos configurables
+- Auto-actualización del estado al finalizar un ensayo
+- Logs de depuración del flujo serie
 
-  * Fuerzas de reacción
-  * Estado del ensayo
-* Gauges analógicos (widgets personalizados)
-* Configuración centralizada
-* Base para lectura en tiempo real
+---
+
+## ⚙️ Configuración
+
+La configuración principal está centralizada en:
+
+```python
+config/app_config.py
+```
+
+Ejemplos de parámetros configurables:
+
+```python
+DEFAULT_DISTANCE = "500"
+DEFAULT_LOAD = "2500"
+
+LOAD_OPTIONS = ["0", "500", "1000", "1500", "2000", "2500", "3000", "3500", "4000", "4500", "5000"]
+
+UNIT_FORCE = "g"
+UNIT_FLEX = "mm"
+
+REACTION_GAUGE_MIN = 0
+REACTION_GAUGE_MAX = 8000
+REACTION_GAUGE_INITIAL = 0
+```
+
+---
+
+## 🖼️ Captura de la aplicación
+
+La carpeta `assets/images/` incluye una captura de la interfaz:
+
+- `app.png`
+- `udemm_logo.png`
 
 ---
 
 ## 🚧 Estado del proyecto
 
-En desarrollo activo:
+Base funcional completa:
 
-* [ ] Integración completa con Arduino
-* [ ] Lectura en tiempo real
-* [ ] Automatización del ensayo
-* [ ] Registro de datos
-* [ ] Exportación de resultados
+- ✅ Comunicación estable con Arduino
+- ✅ Flujo de refresco operativo
+- ✅ Inicio de ensayo desde GUI
+- ✅ Parsing robusto de respuestas JSON
+- ✅ Visualización del estado del ensayo
+
+Pendiente:
+
+- [ ] Registro de datos a archivo
+- [ ] Exportación de resultados
+- [ ] Curvas de ensayo
+- [ ] Ajustes finales de UX para laboratorio
 
 ---
 
 ## 🧠 Contexto académico
 
-Este proyecto se enmarca en el estudio de:
+Aplicación orientada al estudio de:
 
-* Vigas simplemente apoyadas
-* Equilibrio estático
-* Reacciones en apoyos
-* Deformaciones (flexión)
+- Vigas simplemente apoyadas
+- Equilibrio estático
+- Reacciones en apoyos
+- Flexión y deformación
 
 ---
 
 ## 🤝 Contribuciones
 
-Proyecto en desarrollo. Cualquier sugerencia o mejora es bienvenida.
+Proyecto en desarrollo activo.  
+Las sugerencias y mejoras son bienvenidas.
 
 ---
 
