@@ -17,7 +17,7 @@ LOGO_PATH = IMAGES_DIR / "udemm_logo.png"
 WINDOW_TITLE = "Banco de Ensayo - Viga Simplemente Apoyada"
 APP_SUBTITLE = "FACULTAD DE INGENIERÍA - FÍSICA 1"
 APP_TITLE = "VIGA SIMPLEMENTE APOYADA"
-APP_VERSION = "v0.1.0"
+APP_VERSION = "v0.6.0"
 GITHUB_URL = "https://github.com/"
 
 
@@ -59,7 +59,7 @@ SECTION_INPUTS = "Entradas del ensayo"
 SECTION_OUTPUTS = "Salidas del ensayo"
 
 LABEL_DISTANCE = "Distancia (mm)"
-LABEL_LOAD = "Carga (kg)"
+LABEL_LOAD = "Carga (g)"
 LABEL_PORT = "Puerto:"
 
 CARD_R1_TITLE = "Fuerza de reacción 1"
@@ -81,13 +81,16 @@ BUTTON_REFRESH = "Refrescar"
 # =========================
 # VALORES INICIALES
 # =========================
-DEFAULT_DISTANCE = "0"
-DEFAULT_LOAD = "0"
-LOAD_OPTIONS = ["0", "1", "2", "5", "10"]
+DEFAULT_DISTANCE = "500"
+DEFAULT_LOAD =  "2500"
+LOAD_OPTIONS = ["0","500","1000", "1500", "2000", "2500", "3000", "3500", "4000", "4500" ,  "5000"]
 
 
-UNIT_FORCE = "kg"
+UNIT_FORCE = "g"
 UNIT_FLEX = "mm"
+REACTION_GAUGE_MIN = 0
+REACTION_GAUGE_MAX = 8000
+REACTION_GAUGE_INITIAL = 0
 
 INITIAL_R1_VALUE = f"0.0 {UNIT_FORCE}"
 INITIAL_R2_VALUE = f"0.0 {UNIT_FORCE}"

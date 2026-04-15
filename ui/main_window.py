@@ -46,7 +46,10 @@ from config.app_config import (
     STATUS_GUI_ONLY,
     WINDOW_TITLE,
     UNIT_FORCE,
-    UNIT_FLEX
+    UNIT_FLEX,
+    REACTION_GAUGE_MIN,
+    REACTION_GAUGE_MAX,
+    REACTION_GAUGE_INITIAL
 )
 
 from ui.graphics import OutputCard
@@ -342,9 +345,9 @@ class MainWindow(QMainWindow):
             INITIAL_R1_VALUE,
             0,
             gauge=True,
-            gauge_min=0,
-            gauge_max=100,
-            gauge_value=0,
+            gauge_min=REACTION_GAUGE_MIN,
+            gauge_max=REACTION_GAUGE_MAX,
+            gauge_value=REACTION_GAUGE_INITIAL,
             gauge_unit=UNIT_FORCE,
             gauge_decimals=1,
             gauge_accent="#4da3ff",
@@ -355,9 +358,9 @@ class MainWindow(QMainWindow):
             INITIAL_R2_VALUE,
             0,
             gauge=True,
-            gauge_min=0,
-            gauge_max=100,
-            gauge_value=0,
+            gauge_min=REACTION_GAUGE_MIN,
+            gauge_max=REACTION_GAUGE_MAX,
+            gauge_value=REACTION_GAUGE_INITIAL,
             gauge_unit=UNIT_FORCE,
             gauge_decimals=1,
             gauge_accent="#67d4ff",
@@ -411,6 +414,7 @@ class MainWindow(QMainWindow):
         self.btn_actualizar = QPushButton(BUTTON_REFRESH_PORTS)
         self.btn_conectar = QPushButton(BUTTON_CONNECT)
         self.btn_desconectar = QPushButton(BUTTON_DISCONNECT)
+        self.btn_desconectar.setEnabled(False)
         self.btn_iniciar = QPushButton(BUTTON_START)
         self.btn_refrescar = QPushButton(BUTTON_REFRESH)
 
@@ -445,6 +449,9 @@ class MainWindow(QMainWindow):
         field.setText(default_value)
         field.setMaximumWidth(220)
 
+        if label_text == LABEL_DISTANCE:
+            self.distance_input = field
+
         row.addWidget(label)
         row.addWidget(field)
         row.addStretch()
@@ -463,6 +470,9 @@ class MainWindow(QMainWindow):
         combo.addItems(values)
         combo.setCurrentText(default_value)
         combo.setMaximumWidth(220)
+
+        if label_text == LABEL_LOAD:
+            self.load_combo = combo
 
         row.addWidget(label)
         row.addWidget(combo)
