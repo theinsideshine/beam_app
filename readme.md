@@ -227,11 +227,7 @@ REACTION_GAUGE_INITIAL = 0
 
 ## 🖼️ Captura de la aplicación
 
-La carpeta `assets/images/` incluye una captura de la interfaz:
-
-- `app.png`
-- `udemm_logo.png`
-
+![Captura de la aplicación](assets/images/app.png)
 ---
 
 ## 🚧 Estado del proyecto
