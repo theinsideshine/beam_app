@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QCursor
 from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
@@ -49,7 +49,8 @@ from config.app_config import (
     UNIT_FLEX,
     REACTION_GAUGE_MIN,
     REACTION_GAUGE_MAX,
-    REACTION_GAUGE_INITIAL
+    REACTION_GAUGE_INITIAL,
+    BEAM_DIAGRAM_PATH,
 )
 
 from ui.graphics import OutputCard
@@ -199,6 +200,33 @@ class MainWindow(QMainWindow):
                 background-color: #4da3ff;
                 border-radius: 4px;
             }
+
+            QFrame#beamCard {
+                background-color: rgba(15, 23, 42, 0.55);
+                border: 1px solid #223250;
+                border-radius: 14px;
+            }
+
+            QLabel#beamImageLabel {
+                background: transparent;
+                border: none;
+                padding: 4px;
+                color: #cbd5e1;
+            }
+
+            QPushButton#skycivLinkButton {
+                background: transparent;
+                border: none;
+                color: #4ea1ff;
+                font-size: 15px;
+                font-weight: 600;
+                padding: 6px 10px;
+            }
+
+            QPushButton#skycivLinkButton:hover {
+                color: #7cc0ff;
+                text-decoration: underline;
+            }
         """)
 
         central = QWidget()
@@ -320,9 +348,45 @@ class MainWindow(QMainWindow):
 
         layout.addLayout(self._input_row(LABEL_DISTANCE, DEFAULT_DISTANCE))
         layout.addLayout(self._input_combo_row(LABEL_LOAD, LOAD_OPTIONS, DEFAULT_LOAD))
+        layout.addWidget(self._build_beam_section())
         layout.addStretch()
 
         return frame
+
+    def _build_beam_section(self):
+        self.beam_card = QFrame()
+        self.beam_card.setObjectName("beamCard")
+
+        beam_layout = QVBoxLayout(self.beam_card)
+        beam_layout.setContentsMargins(12, 12, 12, 12)
+        beam_layout.setSpacing(10)
+
+        self.beam_image_label = QLabel()
+        self.beam_image_label.setObjectName("beamImageLabel")
+        self.beam_image_label.setAlignment(Qt.AlignCenter)
+        self.beam_image_label.setMinimumHeight(220)
+
+        pixmap = QPixmap(str(BEAM_DIAGRAM_PATH))
+        if not pixmap.isNull():
+            scaled = pixmap.scaled(
+                430,
+                230,
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation,
+            )
+            self.beam_image_label.setPixmap(scaled)
+        else:
+            self.beam_image_label.setText("Imagen no disponible")
+
+        self.skyciv_link = QPushButton("🔗 Calcular en SkyCiv")
+        self.skyciv_link.setObjectName("skycivLinkButton")
+        self.skyciv_link.setCursor(QCursor(Qt.PointingHandCursor))
+        self.skyciv_link.setFlat(True)
+
+        beam_layout.addWidget(self.beam_image_label)
+        beam_layout.addWidget(self.skyciv_link, alignment=Qt.AlignHCenter)
+
+        return self.beam_card
 
     def _build_output_panel(self):
         frame = QFrame()
@@ -415,6 +479,7 @@ class MainWindow(QMainWindow):
         self.btn_conectar = QPushButton(BUTTON_CONNECT)
         self.btn_desconectar = QPushButton(BUTTON_DISCONNECT)
         self.btn_desconectar.setEnabled(False)
+
         self.btn_iniciar = QPushButton(BUTTON_START)
         self.btn_refrescar = QPushButton(BUTTON_REFRESH)
 

@@ -1,10 +1,26 @@
 import json
 import serial.tools.list_ports
 
+from PySide6.QtCore import QTimer, QUrl
+from PySide6.QtWidgets import QMessageBox
+from PySide6.QtGui import QDesktopServices
+
+from config.app_config import GITHUB_URL , SKYCIV_URL
+
 from core.serial_manager import SerialManager
 
 
+
+from config.app_config import (
+    MSJ_INIT_COM
+    
+)
+
 class MainController:
+    STATE_DISCONNECTED = "Desconectado"
+    STATE_CONNECTED = "Conectado"
+    STATE_RUNNING = "En ejecución"
+
     def __init__(self, view):
         self.view = view
         self.serial_manager = SerialManager()
@@ -12,12 +28,21 @@ class MainController:
         self._json_buffer = []
         self._receiving_json = False
         self._pending_start = False
+        self._waiting_manual_response = False
+        self._auto_refresh_done = False
+
+        self.current_state = self.STATE_DISCONNECTED
+
+        # Handshake de conexión con el banco
+        self._waiting_init_serial = False
+        self._connect_port_name = ""
+        self._connect_timer = QTimer()
+        self._connect_timer.setSingleShot(True)
+        self._connect_timer.timeout.connect(self._handle_connect_timeout)
 
         self.setup_connections()
         self.refresh_ports()
-        self.update_ui_state()
-        self._waiting_manual_response = False
-        self._auto_refresh_done = False
+        self.set_state(self.STATE_DISCONNECTED)
 
     def setup_connections(self):
         self.view.btn_actualizar.clicked.connect(self.refresh_ports)
@@ -25,6 +50,65 @@ class MainController:
         self.view.btn_desconectar.clicked.connect(self.disconnect_serial)
         self.view.btn_refrescar.clicked.connect(self.refresh_data)
         self.view.btn_iniciar.clicked.connect(self.start_test)
+        self.view.github_button.clicked.connect(self.open_github)
+        self.view.skyciv_link.clicked.connect(self.open_skyciv)
+
+    def open_skyciv(self):
+        if not SKYCIV_URL.strip():
+            self.view.status_label.setText("URL de SkyCiv no configurada")
+            return
+
+        ok = QDesktopServices.openUrl(QUrl(SKYCIV_URL))
+
+        if ok:
+            self.view.status_label.setText("Abriendo SkyCiv...")
+        else:
+            self.view.status_label.setText("No se pudo abrir SkyCiv")
+
+    def open_github(self):
+        if not GITHUB_URL.strip():
+            self.view.status_label.setText("URL de GitHub no configurada")
+            return
+
+        ok = QDesktopServices.openUrl(QUrl(GITHUB_URL))
+
+        if ok:
+            self.view.status_label.setText("Abriendo GitHub...")
+        else:
+            self.view.status_label.setText("No se pudo abrir GitHub")
+
+    # -----------------------------------------
+    # ESTADOS UI
+    # -----------------------------------------
+    def set_state(self, state):
+        self.current_state = state
+        self.view.status_label.setText(state)
+        self.view.card_status.set_value(state)
+        self.update_ui_state()
+
+    def update_ui_state(self):
+        state = self.current_state
+        connected = self.serial_manager.is_connected()
+        connecting = self._waiting_init_serial
+
+        self.view.puerto_combo.setEnabled(not connected and not connecting)
+        self.view.btn_actualizar.setEnabled(not connected and not connecting)
+        self.view.btn_conectar.setEnabled(not connected and not connecting)
+
+        if state == self.STATE_DISCONNECTED:
+            self.view.btn_desconectar.setEnabled(False)
+            self.view.btn_iniciar.setEnabled(False)
+            self.view.btn_refrescar.setEnabled(False)
+
+        elif state == self.STATE_CONNECTED:
+            self.view.btn_desconectar.setEnabled(True)
+            self.view.btn_iniciar.setEnabled(True)
+            self.view.btn_refrescar.setEnabled(True)
+
+        elif state == self.STATE_RUNNING:
+            self.view.btn_desconectar.setEnabled(False)
+            self.view.btn_iniciar.setEnabled(False)
+            self.view.btn_refrescar.setEnabled(False)
 
     # -----------------------------------------
     # PUERTOS
@@ -48,6 +132,7 @@ class MainController:
             print("No se encontraron puertos serie")
         else:
             self.view.status_label.setText("Puertos actualizados")
+            print("Puertos serie actualizados")
 
     # -----------------------------------------
     # CONEXIÓN
@@ -56,11 +141,13 @@ class MainController:
         print("[UI] Botón: Conectar")
 
         if self.serial_manager.is_connected():
+            self.set_state(self.STATE_CONNECTED)
             self.view.status_label.setText("Ya conectado")
             return
 
         port = self.view.puerto_combo.currentText().strip()
         if not port:
+            self.set_state(self.STATE_DISCONNECTED)
             self.view.status_label.setText("Seleccione un puerto")
             print("No hay puerto seleccionado")
             return
@@ -68,36 +155,76 @@ class MainController:
         success = self.serial_manager.connect(port)
 
         if not success:
+            self.set_state(self.STATE_DISCONNECTED)
             self.view.status_label.setText(f"Error al conectar a {port}")
             print(f"No se pudo conectar a {port}")
-            self.update_ui_state()
             return
 
-        self.view.status_label.setText(f"Conectado a {port}")
-        print(f"Conectado a {port}")
-
+        print(f'Puerto abierto en {port}, esperando "{MSJ_INIT_COM}"...')
         self.serial_manager.read_lines(self.handle_serial_data)
+
+        self._connect_port_name = port
+        self._waiting_init_serial = True
+        self.view.status_label.setText(f"Conectado a {port}, esperando banco...")
         self.update_ui_state()
+
+        self._connect_timer.start(2500)
+
+    def _handle_connect_timeout(self):
+        if not self._waiting_init_serial:
+            return
+
+        port = self._connect_port_name
+        print(f'[HANDSHAKE] Timeout esperando "{MSJ_INIT_COM}" en {port}')
+
+        self._waiting_init_serial = False
+        self.serial_manager.disconnect()
+        self.reset_connection_flags()
+        self.reset_outputs()
+        self.set_state(self.STATE_DISCONNECTED)
+
+        QMessageBox.warning(
+            self.view,
+            "Banco no detectado",
+            f"Conectado al {port}, pero no al banco.\n\n"
+            f"No llegó el mensaje '{MSJ_INIT_COM}'."
+        )
 
     def disconnect_serial(self):
         print("[UI] Botón: Desconectar")
 
         if not self.serial_manager.is_connected():
+            self.set_state(self.STATE_DISCONNECTED)
             self.view.status_label.setText("No hay conexión activa")
-            self.update_ui_state()
             return
 
+        self._connect_timer.stop()
+        self._waiting_init_serial = False
+
         self.serial_manager.disconnect()
-        self.view.status_label.setText("Desconectado")
         print("Desconectado del puerto serie")
 
+        self.reset_connection_flags()
+        self.reset_outputs()
+        self.set_state(self.STATE_DISCONNECTED)
+
+    def reset_connection_flags(self):
         self._json_buffer.clear()
         self._receiving_json = False
         self._pending_start = False
+        self._waiting_manual_response = False
+        self._auto_refresh_done = False
+        self._connect_port_name = ""
 
-        self.update_status_indicator(0)
-        self.reset_outputs()
-        self.update_ui_state()
+    # -----------------------------------------
+    # ALERTAS
+    # -----------------------------------------
+    def show_running_alert(self):
+        QMessageBox.warning(
+            self.view,
+            "Ensayo en ejecución",
+            "Espere que termine la ejecución del ensayo."
+        )
 
     # -----------------------------------------
     # REFRESH
@@ -107,8 +234,11 @@ class MainController:
 
         if not self.serial_manager.is_connected():
             print("[FLOW] Refresh cancelado: serial desconectado")
-            self.view.status_label.setText("Apagado")
-            self.update_status_indicator(0)
+            self.set_state(self.STATE_DISCONNECTED)
+            return
+
+        if self._waiting_init_serial:
+            self.view.status_label.setText("Esperando banco...")
             return
 
         print("[FLOW] Refresh -> request_status()")
@@ -123,13 +253,16 @@ class MainController:
 
         if not self.serial_manager.is_connected():
             print("[FLOW] Start cancelado: serial desconectado")
-            self.view.status_label.setText("Apagado")
-            self.update_status_indicator(0)
+            self.set_state(self.STATE_DISCONNECTED)
             return
 
+        if self._waiting_init_serial:
+            self.view.status_label.setText("Esperando banco...")
+            return
+
+        print("[FLOW] Start -> pending_start=True -> request_status()")
         self._pending_start = True
         self._auto_refresh_done = False
-        print("[FLOW] Start -> pending_start=True -> request_status()")
         self._waiting_manual_response = True
         self.request_status()
 
@@ -176,10 +309,28 @@ class MainController:
 
         print(f"Recibido: {line}")
 
-        # vamos acumulando todo como stream
+        if line == MSJ_INIT_COM:
+            self._handle_init_serial()
+            return
+
+        if self._waiting_init_serial and not line.startswith("{"):
+            print(f"[HANDSHAKE] Ignorado durante espera: {line}")
+            return
+
         self._json_buffer.append(line)
         self._try_parse_json_buffer()
 
+    def _handle_init_serial(self):
+        print(f'[HANDSHAKE] Recibido "{MSJ_INIT_COM}"')
+
+        self._connect_timer.stop()
+        self._waiting_init_serial = False
+
+        if self.serial_manager.is_connected():
+            self.set_state(self.STATE_CONNECTED)
+            self.view.status_label.setText(f"Conectado a {self._connect_port_name}")
+        else:
+            self.set_state(self.STATE_DISCONNECTED)
 
     def _try_parse_json_buffer(self):
         raw = "".join(self._json_buffer)
@@ -207,7 +358,6 @@ class MainController:
                     current = []
                     in_json = False
 
-        # si quedó algo incompleto, lo preservamos
         remainder = "".join(current).strip()
         self._json_buffer = [remainder] if remainder else []
 
@@ -243,19 +393,20 @@ class MainController:
 
             try:
                 st_test = int(data.get("st_test", 0))
-            except:
+            except Exception:
                 st_test = 0
 
-            self.update_status_indicator(st_test)
-
             if st_test == 0:
-                self.view.status_label.setText("Ensayo finalizado")
+                if self.serial_manager.is_connected():
+                    self.set_state(self.STATE_CONNECTED)
+                    self.view.status_label.setText("Ensayo finalizado")
 
                 if not self._waiting_manual_response and not self._auto_refresh_done:
                     print("[FLOW] Auto refresh por fin de ensayo")
                     self._auto_refresh_done = True
                     self.request_status()
             else:
+                self.set_state(self.STATE_RUNNING)
                 self.view.status_label.setText(f"Ensayo activo ({st_test})")
 
             return
@@ -269,7 +420,7 @@ class MainController:
             print("[JSON] Detectado result=ack")
 
             if data.get("cmd") == "start":
-                self.update_status_indicator(1)
+                self.set_state(self.STATE_RUNNING)
                 self.view.status_label.setText("Ensayo iniciado")
             else:
                 self.view.status_label.setText("Comando ACK")
@@ -285,36 +436,55 @@ class MainController:
 
         try:
             status = int(status)
-            if status != 0:
-                self._waiting_manual_response = False
         except (TypeError, ValueError):
             print("[FLOW] status inválido")
             self.view.status_label.setText("Estado inválido")
             self._pending_start = False
+            self._waiting_manual_response = False
             return
 
         print(f"[FLOW] status parseado = {status}, pending_start = {self._pending_start}")
 
-        self.update_status_indicator(status)
+        if status == 0:
+            if self.serial_manager.is_connected():
+                self.set_state(self.STATE_CONNECTED)
+        else:
+            self.set_state(self.STATE_RUNNING)
 
+        # Caso: se apretó INICIAR pero el ensayo ya estaba corriendo
         if self._pending_start:
+            self._pending_start = False
+            self._waiting_manual_response = False
+
             if status == 0:
                 print("[FLOW] pending_start=True y status=0 -> start_sequence()")
-                self._pending_start = False
                 self.start_sequence()
             else:
-                print("[FLOW] pending_start=True pero status!=0 -> ensayo ya activo")
-                self._pending_start = False
-                self.view.status_label.setText(f"Ensayo activo (status={status})")
+                print("[FLOW] pending_start=True pero status!=0 -> alerta de ensayo en ejecución")
+                self.set_state(self.STATE_RUNNING)
+                self.view.status_label.setText("Ensayo en ejecución")
+                self.show_running_alert()
             return
+
+        # Caso: se apretó REFRESCAR y el ensayo está corriendo
+        if self._waiting_manual_response:
+            self._waiting_manual_response = False
+
+            if status != 0:
+                print("[FLOW] Refresh manual con status!=0 -> alerta de ensayo en ejecución")
+                self.set_state(self.STATE_RUNNING)
+                self.view.status_label.setText("Ensayo en ejecución")
+                self.show_running_alert()
+                return
 
         if status == 0:
             print("[FLOW] Refresh normal y status=0 -> request_all_params()")
             self.view.status_label.setText("Ensayo apagado, leyendo parámetros...")
             self.request_all_params()
         else:
-            print("[FLOW] Refresh normal y status!=0 -> no pide parámetros")
-            self.view.status_label.setText(f"Ensayo activo (status={status})")
+            print("[FLOW] status!=0 -> ensayo activo")
+            self.set_state(self.STATE_RUNNING)
+            self.view.status_label.setText(f"Ensayo activo ({status})")
 
     def process_all_params_response(self, data):
         print(f"[FLOW] process_all_params_response -> {data}")
@@ -324,6 +494,10 @@ class MainController:
 
         print("[FLOW] UI actualizada con all-params")
         self._waiting_manual_response = False
+
+        if self.serial_manager.is_connected():
+            self.set_state(self.STATE_CONNECTED)
+
         self.view.status_label.setText("Parámetros actualizados")
 
     # -----------------------------------------
@@ -357,14 +531,8 @@ class MainController:
             self.view.status_label.setText("Error iniciando ensayo")
 
     # -----------------------------------------
-    # UI
+    # UI DATA
     # -----------------------------------------
-    def update_status_indicator(self, status):
-        if status == 0:
-            self.view.card_status.set_value("Apagado")
-        else:
-            self.view.card_status.set_value(f"Encendido ({status})")
-
     def update_measurements(self, data):
         reaction_one = self._to_float(data.get("reaction_one", 0))
         reaction_two = self._to_float(data.get("reaction_two", 0))
@@ -412,13 +580,3 @@ class MainController:
             return float(value)
         except (TypeError, ValueError):
             return 0.0
-
-    def update_ui_state(self):
-        conectado = self.serial_manager.is_connected()
-
-        self.view.btn_conectar.setEnabled(not conectado)
-        self.view.btn_desconectar.setEnabled(conectado)
-        self.view.puerto_combo.setEnabled(not conectado)
-        self.view.btn_actualizar.setEnabled(not conectado)
-        self.view.btn_refrescar.setEnabled(True)
-        self.view.btn_iniciar.setEnabled(True)

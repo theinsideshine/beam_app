@@ -9,6 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 ASSETS_DIR = BASE_DIR / "assets"
 IMAGES_DIR = ASSETS_DIR / "images"
 LOGO_PATH = IMAGES_DIR / "udemm_logo.png"
+BEAM_DIAGRAM_PATH = IMAGES_DIR / "beam_diagram_dark.png"
 
 
 # =========================
@@ -17,9 +18,9 @@ LOGO_PATH = IMAGES_DIR / "udemm_logo.png"
 WINDOW_TITLE = "Banco de Ensayo - Viga Simplemente Apoyada"
 APP_SUBTITLE = "FACULTAD DE INGENIERÍA - FÍSICA 1"
 APP_TITLE = "VIGA SIMPLEMENTE APOYADA"
-APP_VERSION = "v0.6.0"
-GITHUB_URL = "https://github.com/"
-
+APP_VERSION = "v1.0.0"
+GITHUB_URL = "https://github.com/theinsideshine/beam_app"
+SKYCIV_URL = "https://skyciv.com/es/free-beam-calculator/"
 
 # =========================
 # PLATAFORMA
@@ -33,6 +34,7 @@ IS_LINUX = SYSTEM_NAME == "linux"
 # SERIAL
 # =========================
 DEFAULT_BAUDRATE = 115200
+MSJ_INIT_COM = "Init Serial"
 
 if IS_WINDOWS:
     DEFAULT_SERIAL_PORT = "COM3"
@@ -48,7 +50,7 @@ else:
 # =========================
 # FLAGS VISUALES
 # =========================
-SHOW_FLEX_SECTION  = False
+SHOW_FLEX_SECTION = False
 SHOW_REACTION_GAUGES = True
 
 
@@ -67,8 +69,8 @@ CARD_R2_TITLE = "Fuerza de reacción 2"
 CARD_FLEX_TITLE = "Flexión"
 CARD_STATUS_TITLE = "Status del ensayo"
 
-STATUS_READY = "Listo"
-STATUS_GUI_ONLY = "Estado: GUI sin lógica"
+STATUS_READY = "Desconectado"
+STATUS_GUI_ONLY = "Desconectado"
 
 BUTTON_GITHUB = "GitHub"
 BUTTON_REFRESH_PORTS = "Actualizar COMs"
@@ -82,8 +84,8 @@ BUTTON_REFRESH = "Refrescar"
 # VALORES INICIALES
 # =========================
 DEFAULT_DISTANCE = "500"
-DEFAULT_LOAD =  "2500"
-LOAD_OPTIONS = ["0","500","1000", "1500", "2000", "2500", "3000", "3500", "4000", "4500" ,  "5000"]
+DEFAULT_LOAD = "2500"
+LOAD_OPTIONS = ["0", "500", "1000", "1500", "2000", "2500", "3000", "3500", "4000", "4500", "5000"]
 
 
 UNIT_FORCE = "g"
