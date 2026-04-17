@@ -437,6 +437,9 @@ class MainWindow(QMainWindow):
             gauge=False,
         )
 
+        self.card_status.set_percent(33)
+        self.card_status.set_progress_color("#808080")
+
         cards_grid.addWidget(self.card_r1, 0, 0)
         cards_grid.addWidget(self.card_r2, 0, 1)
 

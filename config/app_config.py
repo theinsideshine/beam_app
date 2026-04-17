@@ -18,7 +18,9 @@ BEAM_DIAGRAM_PATH = IMAGES_DIR / "beam_diagram_dark.png"
 WINDOW_TITLE = "Banco de Ensayo - Viga Simplemente Apoyada"
 APP_SUBTITLE = "FACULTAD DE INGENIERÍA - FÍSICA 1"
 APP_TITLE = "VIGA SIMPLEMENTE APOYADA"
-APP_VERSION = "v1.0.0"
+APP_VERSION = "v2.0.0"
+#v1 Primer test completo
+#V2 queque entre serial y gui 
 GITHUB_URL = "https://github.com/theinsideshine/beam_app"
 SKYCIV_URL = "https://skyciv.com/es/free-beam-calculator/"
 
@@ -69,8 +71,7 @@ CARD_R2_TITLE = "Fuerza de reacción 2"
 CARD_FLEX_TITLE = "Flexión"
 CARD_STATUS_TITLE = "Status del ensayo"
 
-STATUS_READY = "Desconectado"
-STATUS_GUI_ONLY = "Desconectado"
+
 
 BUTTON_GITHUB = "GitHub"
 BUTTON_REFRESH_PORTS = "Actualizar COMs"
@@ -97,4 +98,29 @@ REACTION_GAUGE_INITIAL = 0
 INITIAL_R1_VALUE = f"0.0 {UNIT_FORCE}"
 INITIAL_R2_VALUE = f"0.0 {UNIT_FORCE}"
 INITIAL_FLEX_VALUE = f"0.0 {UNIT_FLEX}"
+
+# =========================
+# ESTADOS DE ENSAYO
+# =========================
+STATE_DISCONNECTED = "Desconectado"
+STATE_CONNECTED = "Conectado"
+STATE_RUNNING = "En ejecución"
+
+STATUS_BAR_STYLES = {
+    STATE_DISCONNECTED: {
+        "color": "#808080",   # gris
+        "percent": 33,
+    },
+    STATE_CONNECTED: {
+        "color": "#007BFF",   # azul
+        "percent": 66,
+    },
+    STATE_RUNNING: {
+        "color": "#28A745",   # verde
+        "percent": 100,
+    },
+}
+
+STATUS_READY = STATE_DISCONNECTED
+STATUS_GUI_ONLY = STATE_DISCONNECTED
 INITIAL_STATUS_VALUE = STATUS_READY

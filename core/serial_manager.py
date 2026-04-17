@@ -7,6 +7,10 @@ class SerialManager:
         self.serial = None
         self.thread = None
         self.running = False
+        self.event_queue = None
+
+    def set_event_queue(self, event_queue):
+        self.event_queue = event_queue
 
     def connect(self, port, baudrate=115200):
         try:
@@ -43,14 +47,16 @@ class SerialManager:
                 return False
         return False
 
-    def read_lines(self, callback):
+    def start_reading(self):
         def run():
             while self.running:
                 try:
                     if self.serial and self.serial.is_open and self.serial.in_waiting:
                         line = self.serial.readline().decode(errors="ignore").strip()
-                        if line:
-                            callback(line)
+
+                        if line and self.event_queue:
+                            self.event_queue.put(line)
+
                 except Exception as e:
                     print(f"Error leyendo datos: {e}")
 

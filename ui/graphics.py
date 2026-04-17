@@ -183,6 +183,9 @@ class OutputCard(QFrame):
 
         layout.addWidget(self.progress)
 
+        # color inicial por defecto
+        self.set_progress_color("#4da3ff")
+
     def set_value(self, value: str):
         self.value_label.setText(value)
 
@@ -192,3 +195,17 @@ class OutputCard(QFrame):
     def set_gauge_value(self, value: float):
         if self.gauge:
             self.gauge.set_value(value)
+
+    def set_progress_color(self, color: str):
+        self.progress.setStyleSheet(f"""
+            QProgressBar#cardProgress {{
+                background-color: #0e131b;
+                border: 1px solid #243043;
+                border-radius: 5px;
+            }}
+
+            QProgressBar#cardProgress::chunk {{
+                background-color: {color};
+                border-radius: 4px;
+            }}
+        """)

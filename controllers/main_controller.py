@@ -1,29 +1,45 @@
 import json
+from queue import Empty
+
 import serial.tools.list_ports
 
 from PySide6.QtCore import QTimer, QUrl
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QDesktopServices
 
-from config.app_config import GITHUB_URL , SKYCIV_URL
-
-from core.serial_manager import SerialManager
-
+from config.app_config import GITHUB_URL, SKYCIV_URL, MSJ_INIT_COM
 
 
 from config.app_config import (
-    MSJ_INIT_COM
-    
+    GITHUB_URL,
+    SKYCIV_URL,
+    MSJ_INIT_COM,
+    STATE_DISCONNECTED,
+    STATE_CONNECTED,
+    STATE_RUNNING,
+    STATUS_BAR_STYLES,
 )
 
+from config.app_config import (
+    STATE_DISCONNECTED as CFG_STATE_DISCONNECTED,
+    STATE_CONNECTED as CFG_STATE_CONNECTED,
+    STATE_RUNNING as CFG_STATE_RUNNING,
+)
+
+from core.serial_manager import SerialManager
+from core.serial_event_queue import SerialEventQueue
+
 class MainController:
-    STATE_DISCONNECTED = "Desconectado"
-    STATE_CONNECTED = "Conectado"
-    STATE_RUNNING = "En ejecución"
+    STATE_DISCONNECTED = CFG_STATE_DISCONNECTED
+    STATE_CONNECTED = CFG_STATE_CONNECTED
+    STATE_RUNNING = CFG_STATE_RUNNING
 
     def __init__(self, view):
         self.view = view
         self.serial_manager = SerialManager()
+
+        self.serial_queue = SerialEventQueue()
+        self.serial_manager.set_event_queue(self.serial_queue)
 
         self._json_buffer = []
         self._receiving_json = False
@@ -39,6 +55,10 @@ class MainController:
         self._connect_timer = QTimer()
         self._connect_timer.setSingleShot(True)
         self._connect_timer.timeout.connect(self._handle_connect_timeout)
+
+        self._serial_poll_timer = QTimer()
+        self._serial_poll_timer.timeout.connect(self._process_serial_queue)
+        self._serial_poll_timer.start(30)
 
         self.setup_connections()
         self.refresh_ports()
@@ -82,8 +102,17 @@ class MainController:
     # -----------------------------------------
     def set_state(self, state):
         self.current_state = state
+
+        style = STATUS_BAR_STYLES.get(
+            state,
+            {"color": "#808080", "percent": 0}
+        )
+
         self.view.status_label.setText(state)
         self.view.card_status.set_value(state)
+        self.view.card_status.set_percent(style["percent"])
+        self.view.card_status.set_progress_color(style["color"])
+
         self.update_ui_state()
 
     def update_ui_state(self):
@@ -161,7 +190,8 @@ class MainController:
             return
 
         print(f'Puerto abierto en {port}, esperando "{MSJ_INIT_COM}"...')
-        self.serial_manager.read_lines(self.handle_serial_data)
+        self.serial_queue.clear()
+        self.serial_manager.start_reading()
 
         self._connect_port_name = port
         self._waiting_init_serial = True
@@ -215,6 +245,14 @@ class MainController:
         self._waiting_manual_response = False
         self._auto_refresh_done = False
         self._connect_port_name = ""
+
+    def _process_serial_queue(self):
+        while True:
+            try:
+                line = self.serial_queue.get_nowait()
+                self.handle_serial_data(line)
+            except Empty:
+                break
 
     # -----------------------------------------
     # ALERTAS

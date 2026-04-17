@@ -271,6 +271,131 @@ Conectar la aplicación Python al puerto serie correspondiente
 
 Las librerías utilizadas deben instalarse desde el Arduino IDE (Library Manager) si no están disponibles en el entorno local.
 
+
+## 🧵 Manejo de comunicación serie (Thread-safe con cola)
+
+Para garantizar estabilidad en la interfaz gráfica (Qt) y evitar errores de concurrencia, la aplicación implementa un modelo productor–consumidor usando una cola FIFO para la comunicación con el Arduino.
+
+---
+
+### 🎯 Problema
+
+El puerto serie se lee en un thread secundario, pero Qt exige que toda la UI se actualice únicamente desde el hilo principal.
+
+Acceder a widgets o timers desde otro hilo puede provocar errores como:
+
+```
+QObject::killTimer: Timers cannot be stopped from another thread
+QBackingStore::endPaint() called with active painter
+```
+
+---
+
+### ✅ Solución adoptada
+
+Se desacopla la lectura serie de la lógica de la UI mediante una cola de eventos.
+
+---
+
+### 🧠 Arquitectura
+
+```
+Thread serie (SerialManager)
+        ↓
+    Cola FIFO (SerialEventQueue)
+        ↓
+QTimer (Main thread - Qt)
+        ↓
+MainController.handle_serial_data()
+        ↓
+Actualización de UI
+```
+
+---
+
+### 🔧 Componentes
+
+#### 1. SerialManager (Productor)
+
+- Corre en un thread separado
+- Lee datos del puerto serie
+- Inserta cada línea en la cola
+
+```python
+self.event_queue.put(line)
+```
+
+No procesa datos ni accede a la UI.
+
+---
+
+#### 2. SerialEventQueue (Cola FIFO)
+
+- Implementada con queue.Queue
+- Garantiza orden de llegada (FIFO)
+- Permite desacoplar threads
+
+---
+
+#### 3. MainController (Consumidor)
+
+- Usa un QTimer para consultar la cola periódicamente
+- Procesa todos los mensajes pendientes
+
+```python
+def _process_serial_queue(self):
+    while True:
+        try:
+            line = self.serial_queue.get_nowait()
+            self.handle_serial_data(line)
+        except Empty:
+            break
+```
+
+---
+
+#### 4. QTimer
+
+- Ejecuta _process_serial_queue() cada ~30 ms
+- Corre en el hilo principal de Qt
+- Garantiza acceso seguro a la UI
+
+---
+
+### 🔁 Flujo de datos
+
+1. El usuario envía un comando (ej: STATUS, START)
+2. Arduino responde por serie
+3. SerialManager recibe la línea y la coloca en la cola
+4. QTimer dispara el consumo
+5. MainController procesa el mensaje y actualiza la UI
+
+---
+
+### ⚠️ Reglas importantes
+
+- El thread serie NO debe acceder a la UI
+- El thread serie NO debe procesar lógica del protocolo
+- Solo el MainController interpreta los datos
+- Toda la UI se actualiza en el hilo principal
+
+---
+
+### 🧩 Ventajas
+
+- Evita errores de concurrencia en Qt
+- Mantiene la UI estable
+- Permite manejar eventos asíncronos del banco
+- Escalable para futuros eventos o protocolos más complejos
+
+---
+
+### 💡 Nota
+
+Este enfoque es equivalente al uso de señales (Qt Signals), pero mantiene el SerialManager desacoplado de Qt, facilitando su reutilización en otros entornos.
+
+
+
 ## 🧠 Contexto académico
 
 Aplicación orientada al estudio de:
