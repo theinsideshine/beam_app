@@ -57,6 +57,39 @@ beam_app/
 
 ---
 
+## Antes de ejecutar la aplicación, asegurarse de tener instalado:
+
+1. **Git (para descargar el código)**
+   Descargar desde:
+   https://git-scm.com/downloads
+
+2. **Python 3.11**
+   Descargar desde:
+   https://www.python.org/downloads/
+
+⚠️ Importante durante la instalación de Python:
+
+* Marcar la opción **“Add Python to PATH”**
+
+---
+
+Una vez instalado:
+
+```bat
+git clone https://github.com/theinsideshine/beam_app.git
+cd beam_app
+run_first.bat
+run.bat
+```
+
+---
+
+Ante cualquier problema, verificar:
+
+* Puerto COM del Arduino
+* Cable USB conectado correctamente
+
+
 ## ⚙️ Instalación
 
 ### 1. Clonar repositorio
